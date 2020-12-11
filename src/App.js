@@ -8,7 +8,6 @@ import Logo from './components/Logo/Logo';
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
 import Rank from './components/Rank/Rank';
 import { Component } from 'react';
-import Clarifai from 'clarifai';
 
 const particlesSettings = {
     particles: {
@@ -22,9 +21,21 @@ const particlesSettings = {
     }
   }
 
-const app = new Clarifai.App({
-  apiKey: '01463a36f4cc4f6fa49817ecb5157545'
-});
+const initialState = {
+  input: '',
+  imgUrl: '',
+  box: '',
+  route: 'signin',
+  isSignedIn: false,
+  user: {
+    id: '',
+    name: '',
+    email: '',
+    password: '',
+    entries: 0,
+    joined: '',
+  }
+};
 
 class App extends Component{
   constructor() {
@@ -35,7 +46,27 @@ class App extends Component{
       box: '',
       route: 'signin',
       isSignedIn: false,
+      user: {
+        id: '',
+        name: '',
+        email: '',
+        password: '',
+        entries: 0,
+        joined: '',
+      }
     }
+  }
+
+  loadUser = (data) => {
+    this.setState({user: {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      entries: data.entries,
+      joined: data.joined,
+
+    }});
   }
 
   calculateBox = (data) => {
@@ -61,11 +92,32 @@ class App extends Component{
   
   onButtonSubmit = () => {
     this.setState({ imgUrl: this.state.input });
-    app.models
-      .predict(
-        Clarifai.FACE_EMBED_MODEL, 
-        this.state.input)
-      .then(response => this.displayFaceBox(this.calculateBox(response)))
+    fetch('https://ancient-sea-73991.herokuapp.com/imageurl', {
+        method: 'post',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          input: this.state.input
+        })
+      })
+      .then(response => response.json())
+      .then(response => {
+        if (response) {
+          fetch('https://ancient-sea-73991.herokuapp.com/image', {
+            method: 'put',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              id: this.state.user.id
+            })
+          })
+            .then(response => response.json())
+            .then(count => {
+              this.setState(Object.assign(this.state.user, { entries: count }))
+            })
+            .catch(err => console.log(err))
+        }
+
+        this.displayFaceBox(this.calculateBox(response))
+      })
       .catch(err => console.log(err));
   }
 
@@ -73,7 +125,7 @@ class App extends Component{
     if (route === 'home') {
       this.setState({ isSignedIn: true })
     } else if (route === 'signout') {
-      this.setState({ isSignedIn: false })
+      this.setState(initialState)
     }
     this.setState({route: route});
   }
@@ -87,19 +139,19 @@ class App extends Component{
         <Navigation isSignedIn={ this.state.isSignedIn }onRouteChange={ this.onRouteChange }/>
         {
           {
-            'signin': <SignIn onRouteChange={ this.onRouteChange }/>,
-            'signout': <SignIn onRouteChange={ this.onRouteChange }/>,
+            'signin': <SignIn loadUser={this.loadUser} onRouteChange={ this.onRouteChange }/>,
+            'signout': <SignIn loadUser={this.loadUser} onRouteChange={ this.onRouteChange }/>,
             'home':
               <div>
                 <Logo />
-                <Rank />
+                <Rank name={this.state.user.name} entries={this.state.user.entries} />
                 <ImageLinkForm 
                   onInputChange={ this.onInputChange } 
                   onButtonSubmit={ this.onButtonSubmit }
                 />
                 <FaceRecognition imgUrl={ this.state.imgUrl } box={ this.state.box }/>
               </div>,
-            'register': <Register onRouteChange={ this.onRouteChange }/>,
+            'register': <Register loadUser={ this.loadUser } onRouteChange={ this.onRouteChange }/>,
           }[this.state.route]
         }
       </div>
