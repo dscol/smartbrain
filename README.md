@@ -1,6 +1,6 @@
-# Getting Started with Create React App
+# SmartBrain React app
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Web app that detects faces in images
 
 ## Available Scripts
 
